@@ -38,7 +38,7 @@ def create_app(settings: Settings | None = None, *, start_worker: bool = True) -
         finally:
             worker.stop()
 
-    app = FastAPI(title="AudioScribe Studio", version="0.1.0", docs_url=None, redoc_url=None, lifespan=lifespan)
+    app = FastAPI(title="AudioScribe Studio", version="0.1.1", docs_url=None, redoc_url=None, lifespan=lifespan)
     app.state.settings, app.state.db, app.state.uploads, app.state.worker = settings, db, uploads, worker
 
     @app.middleware("http")

@@ -1,5 +1,7 @@
 # AudioScribe Studio
 
+[![CI](https://github.com/GhosTnever-lkm/audioscribe-studio/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/GhosTnever-lkm/audioscribe-studio/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/GhosTnever-lkm/audioscribe-studio)](https://github.com/GhosTnever-lkm/audioscribe-studio/releases/latest)
+
 **Локальная расшифровка длинных аудиозаписей — до 5 ГБ на файл.** Перетащи запись в приложение, дождись обработки и скачай текст с таймкодами в TXT, SRT, VTT или JSON.
 
 > **Статус:** ранний выпуск `v0.1.0`. Проект рассчитан на локальную обработку; перед использованием на важных записях проверь результат на своём аудио.

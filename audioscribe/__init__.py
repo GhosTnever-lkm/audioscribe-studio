@@ -1,4 +1,4 @@
-"""AudioScribe Studio — private, local-first transcription."""
+"""AudioScribe Studio — local-first audio transcription."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 

@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build tools and test dependencies
+        run: |
+          python -m pip install --upgrade build
+          python -m pip install -e ".[dev,decoder]"
+      - name: Run test suite
+        run: python -m pytest -q
+      - name: Build and smoke-test Python package
+        shell: bash
+        run: |
+          python -m build
+          python -m venv .release-venv
+          .release-venv/bin/python -m pip install dist/*.whl
+          .release-venv/bin/python -c "from audioscribe.config import Settings; from audioscribe.main import create_app; from pathlib import Path; import tempfile; app=create_app(Settings(data_dir=Path(tempfile.mkdtemp())), start_worker=False); assert app.title == 'AudioScribe Studio'; print(app.title, app.version)"
+      - name: Create source archive and checksum
+        id: archive
+        shell: bash
+        run: |
+          name="AudioScribe-Studio-${GITHUB_REF_NAME}"
+          git archive --format=zip --prefix="$name/" "$GITHUB_SHA" -o "$name.zip"
+          sha256sum "$name.zip" > "$name.zip.sha256"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "AudioScribe Studio $GITHUB_REF_NAME" \
+            --notes "Локальная расшифровка аудио с загрузкой до 5 ГБ, очередью и экспортом TXT/SRT/VTT/JSON. Архив исходников сопровождается SHA-256 контрольной суммой." \
+            --verify-tag
+          gh release upload "$GITHUB_REF_NAME" "${{ steps.archive.outputs.name }}.zip" "${{ steps.archive.outputs.name }}.zip.sha256"

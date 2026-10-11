@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "audioscribe-studio"
-version = "0.1.0"
-description = "Private, local-first audio transcription with resumable uploads and long-recording support."
+version = "0.1.1"
+description = "Local-first audio transcription with resumable uploads and long-recording support."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
