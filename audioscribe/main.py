@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
+from . import __version__
 from .config import Settings
 from .database import Database
 from .uploads import UploadError, UploadService
@@ -38,7 +39,7 @@ def create_app(settings: Settings | None = None, *, start_worker: bool = True) -
         finally:
             worker.stop()
 
-    app = FastAPI(title="AudioScribe Studio", version="0.1.2", docs_url=None, redoc_url=None, lifespan=lifespan)
+    app = FastAPI(title="AudioScribe Studio", version=__version__, docs_url=None, redoc_url=None, lifespan=lifespan)
     app.state.settings, app.state.db, app.state.uploads, app.state.worker = settings, db, uploads, worker
 
     @app.middleware("http")
@@ -53,7 +54,8 @@ def create_app(settings: Settings | None = None, *, start_worker: bool = True) -
 
     @app.get("/", response_class=HTMLResponse)
     def home():
-        return (Path(__file__).parent / "static" / "index.html").read_text(encoding="utf-8")
+        page = (Path(__file__).parent / "static" / "index.html").read_text(encoding="utf-8")
+        return page.replace("__VERSION__", __version__)
 
     @app.get("/static/{filename}")
     def static_file(filename: str):

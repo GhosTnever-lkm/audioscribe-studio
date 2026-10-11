@@ -38,6 +38,12 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         response = await self.client.post("/api/uploads", headers={"Origin": "https://elsewhere.example"}, json={"filename": "x.wav", "size": 4})
         self.assertEqual(response.status_code, 403)
 
+    async def test_homepage_shows_package_version(self):
+        from audioscribe import __version__
+        response = await self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(f"v{__version__}", response.text)
+
     async def test_limit_and_invalid_model_are_rejected(self):
         over = await self.client.post("/api/uploads", json={"filename": "large.wav", "size": 33})
         self.assertEqual(over.status_code, 413)

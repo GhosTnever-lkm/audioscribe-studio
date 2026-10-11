@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.4 — 2026-10-12
+
+- Render the sidebar version from package metadata and cover it with an API test.
+
+## 0.1.3 — 2026-10-12
+
+- Display the current release version in the application sidebar.
+
 ## 0.1.2 — 2026-10-12
 
 - Align the README and package metadata with the latest public release and link directly to release downloads.
