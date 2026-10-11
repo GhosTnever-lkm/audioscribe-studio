@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 — 2026-10-12
+
+- Align the README and package metadata with the latest public release and link directly to release downloads.
+
 ## 0.1.1 — 2026-10-12
 
 - Add automated source archive and SHA-256 checksum to GitHub releases.
