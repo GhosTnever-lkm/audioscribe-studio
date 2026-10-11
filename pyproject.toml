@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "audioscribe-studio"
+version = "0.1.0"
+description = "Private, local-first audio transcription with resumable uploads and long-recording support."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.30,<1", "python-multipart>=0.0.9"]
+
+[project.optional-dependencies]
+decoder = ["av>=11"]
+transcription = ["faster-whisper>=1.1,<2"]
+dev = ["httpx>=0.27,<1", "pytest>=8,<9", "numpy>=1.26,<3"]
+
+[project.scripts]
+audioscribe = "audioscribe.main:run"
+
+[tool.setuptools.package-data]
+audioscribe = ["static/*"]
+

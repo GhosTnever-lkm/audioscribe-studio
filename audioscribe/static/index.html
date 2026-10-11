@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1019">
+  <meta name="description" content="Локальная расшифровка длинных аудиозаписей с загрузкой до 5 ГБ.">
+  <title>AudioScribe Studio — расшифровка аудио</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="AudioScribe Studio — главная">
+        <span class="brand-mark"><svg viewBox="0 0 36 36" aria-hidden="true"><path d="M7 18v-4M12 24V9m5 21V6m6 21V9m5 15v-9m5 6v-3"/></svg></span>
+        <span class="brand-name">AudioScribe<span>STUDIO</span></span>
+      </a>
+      <div class="side-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+      <button class="nav-item active"><span class="nav-icon">◉</span>Расшифровка</button>
+      <a class="nav-item" href="#tasks"><span class="nav-icon">▤</span>Мои задания</a>
+      <div class="sidebar-footer"><div class="local-badge"><span class="pulse"></span>Только на этом устройстве</div><p>Файлы и расшифровки не отправляются во внешние сервисы.</p><div class="version">AudioScribe Studio <span>v0.1.0</span></div></div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar"><div><span class="eyebrow">ЛОКАЛЬНЫЙ ИНСТРУМЕНТ</span><span class="topbar-title">Аудио → текст</span></div><div class="top-status"><span class="status-dot"></span>Офлайн-обработка</div></header>
+      <section class="hero"><div class="hero-copy"><div class="eyebrow accent">РАСШИФРОВКА РЕЧИ</div><h1>Преврати запись<br><em>в готовый текст.</em></h1><p>Загрузи аудио и продолжай заниматься своими делами. AudioScribe обработает запись на этом компьютере и сохранит таймкоды.</p><div class="feature-row"><span><b>01</b> До 5 ГБ</span><span><b>02</b> Возобновление загрузки</span><span><b>03</b> Экспорт субтитров</span></div></div><div class="hero-art" aria-hidden="true"><div class="orb orb-back"></div><div class="orb orb-front"></div><div class="waveform"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="art-chip">WAV · MP3 · M4A · FLAC</div></div></section>
+
+      <section class="workspace-grid">
+        <div class="panel upload-panel">
+          <div class="panel-heading"><div><div class="eyebrow">НОВАЯ ЗАПИСЬ</div><h2>Добавить аудио</h2></div><span class="step-number">01 / 02</span></div>
+          <div class="drop-zone" id="dropZone" tabindex="0" role="button" aria-label="Выбрать или перетащить аудиофайл">
+            <input type="file" id="audioFile" accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.opus,.wma,.aiff,.mp4,.mkv,.webm" hidden>
+            <div class="upload-icon"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 32V8m0 0-9 9m9-9 9 9M9 29v10h30V29"/></svg></div>
+            <strong>Перетащи файл сюда</strong><span>или <u>выбери на компьютере</u></span>
+            <div class="drop-meta"><span>Максимум 5 ГБ</span><span>·</span><span>Загрузка продолжается после обрыва</span></div>
+          </div>
+          <div class="file-preview hidden" id="filePreview"><div class="file-type">♫</div><div class="file-meta"><strong id="fileName"></strong><span id="fileSize"></span></div><button class="icon-button" id="removeFile" title="Убрать файл" aria-label="Убрать файл">×</button></div>
+          <div class="settings-row"><label>Модель распознавания<select id="modelSelect"><option value="small" selected>Сбалансированная <small>small</small></option><option value="base">Быстрая <small>base</small></option><option value="medium">Точная <small>medium</small></option><option value="large-v3">Максимальная точность <small>large-v3</small></option><option value="tiny">Самая быстрая <small>tiny</small></option></select></label><label>Язык записи<select id="languageSelect"><option value="">Определить автоматически</option><option value="ru">Русский</option><option value="en">Английский</option><option value="az">Азербайджанский</option><option value="tr">Турецкий</option><option value="uk">Украинский</option><option value="de">Немецкий</option><option value="fr">Французский</option><option value="es">Испанский</option><option value="it">Итальянский</option><option value="zh">Китайский</option><option value="ja">Японский</option></select></label></div>
+          <div class="upload-progress hidden" id="uploadProgress"><div class="progress-label"><span id="uploadStatus">Готовлю загрузку…</span><span id="uploadPercent">0%</span></div><div class="progress-track"><div id="uploadBar"></div></div><div class="progress-label muted"><span id="uploadTransferred">0 / 0</span><span>порциями по 8 МБ</span></div></div>
+          <button class="primary-button" id="startButton" disabled><span>Начать расшифровку</span><span class="button-arrow">↗</span></button>
+          <p class="privacy-note"><span>◇</span> Аудио остаётся на твоём компьютере. Для первого запуска понадобится интернет, чтобы скачать выбранную модель.</p>
+        </div>
+
+        <div class="panel info-panel"><div class="eyebrow">КАК ЭТО РАБОТАЕТ</div><h2>Запись остаётся твоей.</h2><p class="info-intro">Аудио не покидает компьютер. Модель распознавания запускается локально, без платных API и отправки записи в облако.</p><div class="steps"><div class="step"><span class="step-icon">↥</span><div><strong>Загрузка частями</strong><p>Файл отправляется небольшими блоками. После обрыва можно продолжить.</p></div></div><div class="step"><span class="step-icon">◌</span><div><strong>Обработка в фоне</strong><p>Можно свернуть окно. Пауза, продолжение и очередь заданий сохраняются.</p></div></div><div class="step"><span class="step-icon">⌁</span><div><strong>Текст с таймкодами</strong><p>Скачай TXT для чтения или SRT / VTT для видеомонтажа.</p></div></div></div><div class="model-note"><span class="model-spark">✳</span><div><strong>Локальная модель Whisper</strong><p>При первом запуске выбранная модель загрузится на компьютер. Большие модели точнее, но требуют больше памяти и времени.</p></div></div></div>
+      </section>
+
+      <section class="jobs-section" id="tasks"><div class="section-heading"><div><div class="eyebrow">ТВОЯ БИБЛИОТЕКА</div><h2>Задания</h2></div><span class="jobs-count" id="jobsCount">0 записей</span></div><div class="jobs-list" id="jobsList"><div class="empty-state"><span class="empty-icon">⌁</span><div><strong>Пока здесь пусто</strong><p>Добавь аудиозапись — результат появится в этом списке.</p></div></div></div></section>
+      <footer class="page-footer"><span>AudioScribe Studio</span><span>ОБРАБОТКА НА ЭТОМ УСТРОЙСТВЕ</span><a href="https://github.com/GhosTnever-lkm" target="_blank" rel="noreferrer">GhosTnever ↗</a></footer>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
