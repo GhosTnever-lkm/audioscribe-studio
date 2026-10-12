@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5 — 2026-10-12
+
+- Serialize upload chunk commits within the local app process so simultaneous retries at one offset cannot append the same bytes twice.
+- Add a regression check for competing requests using the same acknowledged offset.
+
 ## 0.1.4 — 2026-10-12
 
 - Render the sidebar version from package metadata and cover it with an API test.

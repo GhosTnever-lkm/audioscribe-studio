@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 import uuid
 from pathlib import Path
 
@@ -29,6 +30,10 @@ class UploadService:
         self.db = db
         self.upload_dir = settings.data_dir / "uploads"
         self.jobs_dir = settings.data_dir / "audio"
+        # Offset validation and file append must be one atomic operation within
+        # this local app process. Otherwise two retried PATCH requests can both
+        # observe the same offset and append the same bytes twice.
+        self._append_lock = threading.Lock()
         self.upload_dir.mkdir(parents=True, exist_ok=True)
         self.jobs_dir.mkdir(parents=True, exist_ok=True)
 
@@ -45,6 +50,10 @@ class UploadService:
         return {"id": uid, "filename": safe, "size": size, "offset": 0, "model": model, "language": language}
 
     def append(self, upload_id: str, offset: int, chunks) -> int:
+        with self._append_lock:
+            return self._append_locked(upload_id, offset, chunks)
+
+    def _append_locked(self, upload_id: str, offset: int, chunks) -> int:
         upload = self.db.get_upload(upload_id)
         if not upload:
             raise UploadError("Сессия загрузки не найдена.", 404)

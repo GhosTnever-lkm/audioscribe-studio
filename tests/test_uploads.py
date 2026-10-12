@@ -1,4 +1,6 @@
+import concurrent.futures
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -58,6 +60,28 @@ class UploadServiceTests(unittest.TestCase):
         path.write_bytes(b"lost-ack")
         self.assertEqual(self.service.append(session["id"], 0, [b"12345678"]), 8)
         self.assertEqual(path.read_bytes(), b"12345678")
+
+    def test_simultaneous_retries_at_same_offset_do_not_append_twice(self):
+        session = self.service.create("retry.wav", 4)
+        start = threading.Barrier(3)
+
+        def send_chunk():
+            start.wait()
+            try:
+                return self.service.append(session["id"], 0, [b"data"])
+            except UploadError as exc:
+                return exc.status_code
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            first = pool.submit(send_chunk)
+            second = pool.submit(send_chunk)
+            start.wait()
+            results = [first.result(), second.result()]
+
+        self.assertCountEqual(results, [4, 409])
+        upload = self.db.get_upload(session["id"])
+        self.assertEqual(upload["received_bytes"], 4)
+        self.assertEqual(Path(upload["path"]).read_bytes(), b"data")
 
     def test_product_limit_is_exactly_five_decimal_gigabytes(self):
         from audioscribe.config import MAX_UPLOAD_BYTES
