@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import threading
@@ -52,6 +53,28 @@ class UploadService:
     def append(self, upload_id: str, offset: int, chunks) -> int:
         with self._append_lock:
             return self._append_locked(upload_id, offset, chunks)
+
+    def verify_chunk(self, upload_id: str, offset: int, length: int, digest: str) -> bool:
+        """Compare one bounded slice of a selected local file with uploaded bytes."""
+        with self._append_lock:
+            upload = self.db.get_upload(upload_id)
+            if not upload:
+                raise UploadError("Сессия загрузки не найдена.", 404)
+            if length <= 0 or length > self.settings.upload_chunk_bytes:
+                raise UploadError("Размер проверяемого блока вне допустимых пределов.")
+            expected = int(upload["received_bytes"])
+            if offset < 0 or offset + length > expected:
+                raise UploadError("Проверяемый блок ещё не подтверждён сервером.", 409)
+            path = Path(upload["path"])
+            try:
+                with path.open("rb") as source:
+                    source.seek(offset)
+                    block = source.read(length)
+            except OSError as exc:
+                raise UploadError("Не удалось прочитать уже загруженный блок.", 409) from exc
+            if len(block) != length:
+                raise UploadError("Файл загрузки не совпадает с сохранённым прогрессом.", 409)
+            return hashlib.sha256(block).hexdigest() == digest.lower()
 
     def _append_locked(self, upload_id: str, offset: int, chunks) -> int:
         upload = self.db.get_upload(upload_id)

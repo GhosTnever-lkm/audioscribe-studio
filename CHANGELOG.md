@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.6 — 2026-10-12
+
+- Verify the content of each acknowledged upload block before resuming, so a different file with the same name and size starts a separate upload instead of corrupting the audio.
+- Keep the selected file fixed while an upload is running.
+- Use current SPDX license metadata in the Python package build.
+
 ## 0.1.5 — 2026-10-12
 
 - Serialize upload chunk commits within the local app process so simultaneous retries at one offset cannot append the same bytes twice.

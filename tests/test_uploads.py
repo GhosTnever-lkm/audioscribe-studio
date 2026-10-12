@@ -1,4 +1,5 @@
 import concurrent.futures
+import hashlib
 import tempfile
 import threading
 import unittest
@@ -86,6 +87,19 @@ class UploadServiceTests(unittest.TestCase):
     def test_product_limit_is_exactly_five_decimal_gigabytes(self):
         from audioscribe.config import MAX_UPLOAD_BYTES
         self.assertEqual(MAX_UPLOAD_BYTES, 5_000_000_000)
+
+    def test_verifies_uploaded_ranges_against_the_selected_file(self):
+        session = self.service.create("same-name.wav", 8)
+        self.service.append(session["id"], 0, [b"same"])
+        self.assertTrue(self.service.verify_chunk(session["id"], 0, 4, hashlib.sha256(b"same").hexdigest()))
+        self.assertFalse(self.service.verify_chunk(session["id"], 0, 4, hashlib.sha256(b"diff").hexdigest()))
+
+    def test_rejects_verification_outside_acknowledged_upload(self):
+        session = self.service.create("partial.wav", 8)
+        self.service.append(session["id"], 0, [b"part"])
+        with self.assertRaises(UploadError) as caught:
+            self.service.verify_chunk(session["id"], 2, 4, hashlib.sha256(b"rtxx").hexdigest())
+        self.assertEqual(caught.exception.status_code, 409)
 
 
 if __name__ == "__main__":

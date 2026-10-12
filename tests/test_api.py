@@ -1,3 +1,4 @@
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -37,6 +38,17 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_foreign_origin_cannot_mutate_local_app(self):
         response = await self.client.post("/api/uploads", headers={"Origin": "https://elsewhere.example"}, json={"filename": "x.wav", "size": 4})
         self.assertEqual(response.status_code, 403)
+
+    async def test_resumed_upload_can_verify_existing_file_content(self):
+        created = await self.client.post("/api/uploads", json={"filename": "same.wav", "size": 4, "model": "tiny"})
+        upload_id = created.json()["id"]
+        await self.client.patch(f"/api/uploads/{upload_id}", headers={"Upload-Offset": "0"}, content=b"same")
+        digest = hashlib.sha256(b"same").hexdigest()
+        matching = await self.client.post(f"/api/uploads/{upload_id}/verify", json={"offset": 0, "length": 4, "sha256": digest})
+        different = await self.client.post(f"/api/uploads/{upload_id}/verify", json={"offset": 0, "length": 4, "sha256": hashlib.sha256(b"diff").hexdigest()})
+        self.assertEqual(matching.status_code, 200)
+        self.assertTrue(matching.json()["matches"])
+        self.assertFalse(different.json()["matches"])
 
     async def test_homepage_shows_package_version(self):
         from audioscribe import __version__
