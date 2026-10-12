@@ -23,6 +23,12 @@ class CreateUpload(BaseModel):
     language: str | None = Field(default=None, max_length=8, pattern=r"^[a-zA-Z]{2,3}$")
 
 
+class VerifyUploadChunk(BaseModel):
+    offset: int = Field(ge=0)
+    length: int = Field(gt=0, le=32 * 1024 * 1024)
+    sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
+
+
 def create_app(settings: Settings | None = None, *, start_worker: bool = True) -> FastAPI:
     settings = settings or Settings.from_env()
     settings.data_dir.mkdir(parents=True, exist_ok=True)
@@ -83,6 +89,14 @@ def create_app(settings: Settings | None = None, *, start_worker: bool = True) -
         if not session:
             raise HTTPException(404, "Сессия загрузки не найдена.")
         return Response(status_code=204, headers={"Upload-Offset": str(session["received_bytes"]), "Upload-Length": str(session["total_bytes"]), "Cache-Control": "no-store"})
+
+    @app.post("/api/uploads/{upload_id}/verify")
+    def verify_upload_chunk(upload_id: str, payload: VerifyUploadChunk):
+        try:
+            matches = uploads.verify_chunk(upload_id, payload.offset, payload.length, payload.sha256)
+        except UploadError as exc:
+            raise HTTPException(exc.status_code, str(exc)) from exc
+        return {"matches": matches}
 
     @app.get("/api/uploads")
     def list_uploads():

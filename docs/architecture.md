@@ -6,7 +6,8 @@ AudioScribe Studio is a single-user local web application. FastAPI serves the UI
 
 1. `POST /api/uploads` validates declared size (5,000,000,000-byte hard limit), sanitizes the display filename and creates a random upload ID.
 2. The browser sends fixed-size chunks with `PATCH` and `Upload-Offset`. The server checks the exact expected byte offset, caps each request, serializes chunk commits inside the single local app process, writes to a `.part` file and fsyncs before saving the acknowledged offset in SQLite. If a response is lost, the client reads `HEAD` and resumes at the server's committed offset. The in-process lock assumes the default single-process local server; running multiple server workers is not supported for concurrent uploads.
-3. `POST /complete` verifies the full length and atomically moves the completed file into the audio directory before it queues a job.
+3. Before reusing an unfinished session with a matching name and size, the browser hashes the selected file's acknowledged prefix in bounded chunks and asks the server to compare each digest with the stored bytes. A different file starts a separate upload session, leaving the earlier session intact.
+4. `POST /complete` verifies the full length and atomically moves the completed file into the audio directory before it queues a job.
 
 ## Transcription lifecycle
 

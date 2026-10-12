@@ -28,6 +28,7 @@ function notify(message, error = false) {
 
 function selectFile(file) {
   if (!file) return;
+  if (isUploading) { notify("Дождись завершения текущей загрузки, прежде чем выбирать другой файл.", true); return; }
   if (file.size > MAX_BYTES) { notify("Файл больше допустимого лимита 5 ГБ.", true); return; }
   if (file.size === 0) { notify("Файл пустой.", true); return; }
   selectedFile = file;
@@ -63,6 +64,22 @@ function setUploadProgress(offset, total, state) {
   $("uploadStatus").textContent = state;
 }
 
+async function uploadedPrefixMatches(uploadId, file, offset) {
+  if (!globalThis.crypto?.subtle) return false;
+  for (let start = 0; start < offset; start += CHUNK_BYTES) {
+    const bytes = await file.slice(start, Math.min(start + CHUNK_BYTES, offset)).arrayBuffer();
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    const result = await request(`/api/uploads/${uploadId}/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ offset: start, length: bytes.byteLength, sha256 }),
+    });
+    if (!result.matches) return false;
+  }
+  return true;
+}
+
 async function uploadAndStart() {
   if (!selectedFile || isUploading) return;
   isUploading = true;
@@ -73,13 +90,30 @@ async function uploadAndStart() {
   let uploadId;
   try {
     const open = await request("/api/uploads");
-    let session = open.find((item) => item.filename === selectedFile.name && item.size === selectedFile.size && item.offset > 0);
+    const candidates = open
+      .filter((item) => item.filename === selectedFile.name && item.size === selectedFile.size && item.offset > 0)
+      .sort((a, b) => b.offset - a.offset);
+    const canVerifyPrefix = !!globalThis.crypto?.subtle;
+    let session = null;
+    for (const candidate of candidates) {
+      setUploadProgress(0, selectedFile.size, "Сверяю содержимое с незавершённой загрузкой…");
+      if (await uploadedPrefixMatches(candidate.id, selectedFile, candidate.offset)) {
+        session = candidate;
+        break;
+      }
+    }
     if (session) {
       uploadId = session.id;
-      notify("Нашла незавершённую загрузку — продолжаю с сохранённого места.");
+      notify("Содержимое совпало — продолжаю с сохранённого места.");
     } else {
       session = await request("/api/uploads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename: selectedFile.name, size: selectedFile.size, model: $("modelSelect").value, language: $("languageSelect").value || null }) });
       uploadId = session.id;
+      if (candidates.length) {
+        const message = canVerifyPrefix
+          ? "Содержимое отличается от незавершённой загрузки. Начала отдельную сессию; прежняя сохранена."
+          : "Не удалось проверить прежнюю загрузку. Начала отдельную сессию; прежняя сохранена.";
+        notify(message);
+      }
     }
     let offset = session.offset || 0;
     setUploadProgress(offset, selectedFile.size, "Загружаю порциями…");
