@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.7 — 2026-10-24
 
+- Serialize upload cancellation with active chunk writes and job completion, preventing failed cancels and orphaned audio files.
 - Update GitHub Actions to checkout v7 and setup-python v7, and grant CI read-only repository access.
 - Pin the release runner to Ubuntu 24.04 for reproducible packaging.
 

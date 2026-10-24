@@ -54,6 +54,24 @@ class UploadService:
         with self._append_lock:
             return self._append_locked(upload_id, offset, chunks)
 
+    def cancel(self, upload_id: str) -> None:
+        """Remove an unfinished upload without racing a chunk append or completion."""
+        with self._append_lock:
+            with self.db.connect() as conn:
+                upload = conn.execute("SELECT * FROM uploads WHERE id=?", (upload_id,)).fetchone()
+                if not upload:
+                    raise UploadError("Сессия загрузки не найдена.", 404)
+                if conn.execute("SELECT 1 FROM jobs WHERE upload_id=?", (upload_id,)).fetchone():
+                    raise UploadError("Эта загрузка уже стала заданием.", 409)
+
+                try:
+                    Path(upload["path"]).unlink(missing_ok=True)
+                except OSError as exc:
+                    raise UploadError("Не удалось удалить временный файл загрузки.", 500) from exc
+                deleted = conn.execute("DELETE FROM uploads WHERE id=?", (upload_id,)).rowcount
+                if not deleted:
+                    raise UploadError("Сессия загрузки не найдена.", 404)
+
     def verify_chunk(self, upload_id: str, offset: int, length: int, digest: str) -> bool:
         """Compare one bounded slice of a selected local file with uploaded bytes."""
         with self._append_lock:
@@ -114,6 +132,10 @@ class UploadService:
         return new_offset
 
     def complete(self, upload_id: str, model: str | None = None, language: str | None = None) -> dict:
+        with self._append_lock:
+            return self._complete_locked(upload_id, model, language)
+
+    def _complete_locked(self, upload_id: str, model: str | None = None, language: str | None = None) -> dict:
         upload = self.db.get_upload(upload_id)
         if not upload:
             raise UploadError("Сессия загрузки не найдена.", 404)
