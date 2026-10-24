@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.8 — 2026-10-24
+
+- Apply the currently selected model and language when creating a transcription job, including after resuming an interrupted upload.
+
 ## 0.1.7 — 2026-10-24
 
 - Serialize upload cancellation with active chunk writes and job completion, preventing failed cancels and orphaned audio files.
