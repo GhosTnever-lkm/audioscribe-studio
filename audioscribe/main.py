@@ -29,6 +29,11 @@ class VerifyUploadChunk(BaseModel):
     sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
 
 
+class CompleteUpload(BaseModel):
+    model: str | None = None
+    language: str | None = Field(default=None, max_length=8, pattern=r"^[a-zA-Z]{2,3}$")
+
+
 def create_app(settings: Settings | None = None, *, start_worker: bool = True) -> FastAPI:
     settings = settings or Settings.from_env()
     settings.data_dir.mkdir(parents=True, exist_ok=True)
@@ -140,9 +145,15 @@ def create_app(settings: Settings | None = None, *, start_worker: bool = True) -
             raise HTTPException(exc.status_code, str(exc)) from exc
 
     @app.post("/api/uploads/{upload_id}/complete", status_code=202)
-    def complete_upload(upload_id: str):
+    def complete_upload(upload_id: str, payload: CompleteUpload | None = None):
+        if payload and payload.model is not None and payload.model not in MODEL_CHOICES:
+            raise HTTPException(422, "Выбери поддерживаемую модель.")
         try:
-            job = uploads.complete(upload_id)
+            job = uploads.complete(
+                upload_id,
+                payload.model if payload else None,
+                payload.language.lower() if payload and payload.language else None,
+            )
         except UploadError as exc:
             raise HTTPException(exc.status_code, str(exc)) from exc
         worker.wake()

@@ -35,6 +35,30 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         repeated = await self.client.post(f"/api/uploads/{upload_id}/complete")
         self.assertEqual(repeated.json()["id"], job.json()["id"])
 
+    async def test_completion_uses_current_model_and_language_settings(self):
+        created = await self.client.post(
+            "/api/uploads",
+            json={"filename": "recording.wav", "size": 4, "model": "tiny", "language": "en"},
+        )
+        upload_id = created.json()["id"]
+        await self.client.patch(f"/api/uploads/{upload_id}", headers={"Upload-Offset": "0"}, content=b"data")
+
+        invalid = await self.client.post(
+            f"/api/uploads/{upload_id}/complete",
+            json={"model": "unknown", "language": "ru"},
+        )
+        self.assertEqual(invalid.status_code, 422)
+        self.assertIsNone(self.app.state.db.get_job_by_upload(upload_id))
+
+        completed = await self.client.post(
+            f"/api/uploads/{upload_id}/complete",
+            json={"model": "base", "language": "ru"},
+        )
+
+        self.assertEqual(completed.status_code, 202)
+        self.assertEqual(completed.json()["model"], "base")
+        self.assertEqual(completed.json()["language"], "ru")
+
     async def test_cancel_upload_removes_partial_file_and_session(self):
         created = await self.client.post("/api/uploads", json={"filename": "partial.wav", "size": 8})
         upload_id = created.json()["id"]

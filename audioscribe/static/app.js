@@ -141,7 +141,11 @@ async function uploadAndStart() {
       setUploadProgress(offset, selectedFile.size, "Загружаю порциями…");
     }
     setUploadProgress(offset, selectedFile.size, "Передаю в очередь…");
-    await request(`/api/uploads/${uploadId}/complete`, { method: "POST" });
+    await request(`/api/uploads/${uploadId}/complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: $("modelSelect").value, language: $("languageSelect").value || null }),
+    });
     setUploadProgress(offset, selectedFile.size, "Задание добавлено");
     notify("Аудио добавлено в очередь расшифровки.");
     selectedFile = null;
