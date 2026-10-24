@@ -35,6 +35,30 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         repeated = await self.client.post(f"/api/uploads/{upload_id}/complete")
         self.assertEqual(repeated.json()["id"], job.json()["id"])
 
+    async def test_cancel_upload_removes_partial_file_and_session(self):
+        created = await self.client.post("/api/uploads", json={"filename": "partial.wav", "size": 8})
+        upload_id = created.json()["id"]
+        await self.client.patch(f"/api/uploads/{upload_id}", headers={"Upload-Offset": "0"}, content=b"part")
+        path = Path(self.app.state.db.get_upload(upload_id)["path"])
+
+        cancelled = await self.client.delete(f"/api/uploads/{upload_id}")
+
+        self.assertEqual(cancelled.status_code, 204)
+        self.assertFalse(path.exists())
+        self.assertEqual((await self.client.head(f"/api/uploads/{upload_id}")).status_code, 404)
+
+    async def test_cancel_completed_upload_is_rejected_without_deleting_audio(self):
+        created = await self.client.post("/api/uploads", json={"filename": "ready.wav", "size": 4})
+        upload_id = created.json()["id"]
+        await self.client.patch(f"/api/uploads/{upload_id}", headers={"Upload-Offset": "0"}, content=b"data")
+        job = (await self.client.post(f"/api/uploads/{upload_id}/complete")).json()
+
+        cancelled = await self.client.delete(f"/api/uploads/{upload_id}")
+
+        self.assertEqual(cancelled.status_code, 409)
+        self.assertEqual(Path(job["audio_path"]).read_bytes(), b"data")
+        self.assertEqual(self.app.state.db.get_job(job["id"])["status"], "queued")
+
     async def test_foreign_origin_cannot_mutate_local_app(self):
         response = await self.client.post("/api/uploads", headers={"Origin": "https://elsewhere.example"}, json={"filename": "x.wav", "size": 4})
         self.assertEqual(response.status_code, 403)

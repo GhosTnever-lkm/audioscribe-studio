@@ -42,6 +42,6 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             --title "AudioScribe Studio $GITHUB_REF_NAME" \
-            --notes "Локальная расшифровка аудио с загрузкой до 5 ГБ, очередью и экспортом TXT/SRT/VTT/JSON. Архив исходников сопровождается SHA-256 контрольной суммой." \
+            --generate-notes \
             --verify-tag
           gh release upload "$GITHUB_REF_NAME" "${{ steps.archive.outputs.name }}.zip" "${{ steps.archive.outputs.name }}.zip.sha256"

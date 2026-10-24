@@ -106,14 +106,10 @@ def create_app(settings: Settings | None = None, *, start_worker: bool = True) -
 
     @app.delete("/api/uploads/{upload_id}", status_code=204)
     def cancel_upload(upload_id: str):
-        session = db.get_upload(upload_id)
-        if not session:
-            raise HTTPException(404, "Сессия загрузки не найдена.")
-        with db.connect() as conn:
-            if conn.execute("SELECT 1 FROM jobs WHERE upload_id=?", (upload_id,)).fetchone():
-                raise HTTPException(409, "Эта загрузка уже стала заданием.")
-            conn.execute("DELETE FROM uploads WHERE id=?", (upload_id,))
-        Path(session["path"]).unlink(missing_ok=True)
+        try:
+            uploads.cancel(upload_id)
+        except UploadError as exc:
+            raise HTTPException(exc.status_code, str(exc)) from exc
         return Response(status_code=204)
 
     @app.patch("/api/uploads/{upload_id}")

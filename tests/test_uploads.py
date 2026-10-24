@@ -41,6 +41,77 @@ class UploadServiceTests(unittest.TestCase):
         self.assertEqual(Path(job["audio_path"]).read_bytes(), b"12345678")
         self.assertEqual(job["language"], "ru")
 
+    def test_cancel_removes_unfinished_upload_and_file(self):
+        session = self.service.create("unfinished.wav", 8)
+        self.service.append(session["id"], 0, [b"part"])
+        path = Path(self.db.get_upload(session["id"])["path"])
+
+        self.service.cancel(session["id"])
+
+        self.assertIsNone(self.db.get_upload(session["id"]))
+        self.assertFalse(path.exists())
+
+    def test_cancel_rejects_upload_that_became_a_job(self):
+        session = self.service.create("complete.wav", 4)
+        self.service.append(session["id"], 0, [b"data"])
+        job = self.service.complete(session["id"])
+
+        with self.assertRaises(UploadError) as caught:
+            self.service.cancel(session["id"])
+
+        self.assertEqual(caught.exception.status_code, 409)
+        self.assertEqual(self.db.get_job(job["id"])["status"], "queued")
+        self.assertEqual(Path(job["audio_path"]).read_bytes(), b"data")
+
+    def test_cancel_waits_for_in_flight_append(self):
+        session = self.service.create("race.wav", 4)
+        upload_path = Path(self.db.get_upload(session["id"])["path"])
+        append_started = threading.Event()
+        allow_append = threading.Event()
+        cancel_waiting_for_lock = threading.Event()
+        real_lock = self.service._append_lock
+
+        class ObservedLock:
+            def __enter__(self):
+                if getattr(threading.current_thread(), "testing_upload_cancel", False):
+                    cancel_waiting_for_lock.set()
+                real_lock.acquire()
+                return self
+
+            def __exit__(self, *_args):
+                real_lock.release()
+
+        self.service._append_lock = ObservedLock()
+
+        def slow_chunks():
+            append_started.set()
+            if not allow_append.wait(5):
+                raise RuntimeError("test timed out waiting to finish the chunk")
+            yield b"data"
+
+        def cancel():
+            threading.current_thread().testing_upload_cancel = True
+            try:
+                self.service.cancel(session["id"])
+            finally:
+                del threading.current_thread().testing_upload_cancel
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            append_future = pool.submit(self.service.append, session["id"], 0, slow_chunks())
+            self.assertTrue(append_started.wait(2))
+            cancel_future = pool.submit(cancel)
+            try:
+                self.assertTrue(cancel_waiting_for_lock.wait(2))
+                self.assertFalse(cancel_future.done())
+            finally:
+                allow_append.set()
+
+            self.assertEqual(append_future.result(timeout=3), 4)
+            cancel_future.result(timeout=3)
+
+        self.assertIsNone(self.db.get_upload(session["id"]))
+        self.assertFalse(upload_path.exists())
+
     def test_rejects_incomplete_upload(self):
         session = self.service.create("unfinished.mp3", 8)
         self.service.append(session["id"], 0, [b"1234"])
