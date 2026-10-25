@@ -47,7 +47,7 @@ class UploadService:
         path = self.upload_dir / f"{uid}.part"
         path.touch()
         safe = clean_filename(filename)
-        self.db.add_upload(uid, safe, str(path), size, model, language)
+        self.db.add_upload(uid, safe, str(path), size, model, language, filename)
         return {"id": uid, "filename": safe, "size": size, "offset": 0, "model": model, "language": language}
 
     def append(self, upload_id: str, offset: int, chunks) -> int:

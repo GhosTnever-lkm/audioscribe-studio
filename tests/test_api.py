@@ -98,6 +98,21 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(matching.json()["matches"])
         self.assertFalse(different.json()["matches"])
 
+    async def test_upload_listing_preserves_original_filename_for_resume_matching(self):
+        created = await self.client.post(
+            "/api/uploads",
+            json={"filename": "meeting:2026.wav", "size": 8},
+        )
+        self.assertEqual(created.status_code, 201)
+        upload_id = created.json()["id"]
+        await self.client.patch(f"/api/uploads/{upload_id}", headers={"Upload-Offset": "0"}, content=b"part")
+
+        uploads = (await self.client.get("/api/uploads")).json()
+        resumable = next(item for item in uploads if item["id"] == upload_id)
+
+        self.assertEqual(resumable["filename"], "meeting_2026.wav")
+        self.assertEqual(resumable["source_filename"], "meeting:2026.wav")
+
     async def test_homepage_shows_package_version(self):
         from audioscribe import __version__
         response = await self.client.get("/")

@@ -11,7 +11,7 @@ SCHEMA = """
 PRAGMA journal_mode=WAL;
 PRAGMA foreign_keys=ON;
 CREATE TABLE IF NOT EXISTS uploads (
-  id TEXT PRIMARY KEY, filename TEXT NOT NULL, path TEXT NOT NULL,
+  id TEXT PRIMARY KEY, filename TEXT NOT NULL, source_filename TEXT NOT NULL DEFAULT '', path TEXT NOT NULL,
   total_bytes INTEGER NOT NULL, received_bytes INTEGER NOT NULL DEFAULT 0,
   model TEXT NOT NULL DEFAULT 'small', language TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -55,6 +55,9 @@ class Database:
                 conn.execute("ALTER TABLE uploads ADD COLUMN model TEXT NOT NULL DEFAULT 'small'")
             if "language" not in columns:
                 conn.execute("ALTER TABLE uploads ADD COLUMN language TEXT")
+            if "source_filename" not in columns:
+                conn.execute("ALTER TABLE uploads ADD COLUMN source_filename TEXT NOT NULL DEFAULT ''")
+            conn.execute("UPDATE uploads SET source_filename=filename WHERE source_filename=''")
             # A process interrupted mid-transcription can safely retry; completed chunks are checkpoints.
             conn.execute("UPDATE jobs SET status='queued', updated_at=CURRENT_TIMESTAMP WHERE status='running'")
 
@@ -72,9 +75,12 @@ class Database:
         finally:
             conn.close()
 
-    def add_upload(self, upload_id: str, filename: str, path: str, size: int, model: str = "small", language: str | None = None) -> None:
+    def add_upload(self, upload_id: str, filename: str, path: str, size: int, model: str = "small", language: str | None = None, source_filename: str | None = None) -> None:
         with self.connect() as conn:
-            conn.execute("INSERT INTO uploads(id,filename,path,total_bytes,model,language) VALUES(?,?,?,?,?,?)", (upload_id, filename, path, size, model, language))
+            conn.execute(
+                "INSERT INTO uploads(id,filename,source_filename,path,total_bytes,model,language) VALUES(?,?,?,?,?,?,?)",
+                (upload_id, filename, source_filename if source_filename is not None else filename, path, size, model, language),
+            )
 
     def get_upload(self, upload_id: str):
         with self.connect() as conn:
