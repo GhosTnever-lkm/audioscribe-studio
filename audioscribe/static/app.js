@@ -91,7 +91,7 @@ async function uploadAndStart() {
   try {
     const open = await request("/api/uploads");
     const candidates = open
-      .filter((item) => item.filename === selectedFile.name && item.size === selectedFile.size && item.offset > 0)
+      .filter((item) => (item.source_filename === selectedFile.name || item.filename === selectedFile.name) && item.size === selectedFile.size && item.offset > 0)
       .sort((a, b) => b.offset - a.offset);
     const canVerifyPrefix = !!globalThis.crypto?.subtle;
     let session = null;

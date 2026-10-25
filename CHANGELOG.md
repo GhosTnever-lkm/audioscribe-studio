@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.9 — 2026-10-25
+
+- Preserve the original upload filename so files whose names need sanitization can resume after an interrupted upload.
+- Keep the sanitized filename for stored output and migrate existing upload rows without changing their stored filenames.
+
 ## 0.1.8 — 2026-10-24
 
 - Apply the currently selected model and language when creating a transcription job, including after resuming an interrupted upload.

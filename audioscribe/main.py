@@ -107,7 +107,7 @@ def create_app(settings: Settings | None = None, *, start_worker: bool = True) -
     def list_uploads():
         with db.connect() as conn:
             rows = conn.execute("SELECT u.* FROM uploads AS u WHERE NOT EXISTS (SELECT 1 FROM jobs AS j WHERE j.upload_id=u.id) ORDER BY u.created_at DESC").fetchall()
-        return [{"id": r["id"], "filename": r["filename"], "size": r["total_bytes"], "offset": r["received_bytes"], "model": r["model"], "language": r["language"]} for r in rows]
+        return [{"id": r["id"], "filename": r["filename"], "source_filename": r["source_filename"], "size": r["total_bytes"], "offset": r["received_bytes"], "model": r["model"], "language": r["language"]} for r in rows]
 
     @app.delete("/api/uploads/{upload_id}", status_code=204)
     def cancel_upload(upload_id: str):

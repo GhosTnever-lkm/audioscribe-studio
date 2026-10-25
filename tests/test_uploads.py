@@ -1,5 +1,6 @@
 import concurrent.futures
 import hashlib
+import sqlite3
 import tempfile
 import threading
 import unittest
@@ -22,6 +23,33 @@ class UploadServiceTests(unittest.TestCase):
 
     def test_cleans_path_segments_from_filename(self):
         self.assertEqual(clean_filename("..\\secret\\meeting.wav"), "meeting.wav")
+
+    def test_keeps_original_filename_separately_from_safe_output_name(self):
+        session = self.service.create("meeting:2026.wav", 8)
+        upload = self.db.get_upload(session["id"])
+        self.assertEqual(upload["filename"], "meeting_2026.wav")
+        self.assertEqual(upload["source_filename"], "meeting:2026.wav")
+
+    def test_existing_upload_rows_migrate_source_filename_from_stored_name(self):
+        legacy_path = Path(self.tmp.name) / "legacy.sqlite3"
+        conn = sqlite3.connect(legacy_path)
+        try:
+            conn.execute(
+                "CREATE TABLE uploads (id TEXT PRIMARY KEY, filename TEXT NOT NULL, path TEXT NOT NULL, "
+                "total_bytes INTEGER NOT NULL, received_bytes INTEGER NOT NULL DEFAULT 0, "
+                "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+            )
+            conn.execute(
+                "INSERT INTO uploads(id, filename, path, total_bytes, received_bytes) VALUES(?,?,?,?,?)",
+                ("legacy", "previous_safe_name.wav", str(Path(self.tmp.name) / "old.part"), 10, 4),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        migrated = Database(legacy_path).get_upload("legacy")
+
+        self.assertEqual(migrated["source_filename"], "previous_safe_name.wav")
 
     def test_rejects_over_limit_before_creating_file(self):
         with self.assertRaises(UploadError) as caught:
