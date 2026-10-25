@@ -6,7 +6,7 @@ from pathlib import Path
 import httpx
 import numpy as np
 
-from audioscribe.config import Settings
+from audioscribe.config import MAX_UPLOAD_BYTES, Settings
 from audioscribe.main import create_app
 
 
@@ -34,6 +34,31 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(job.json()["status"], "queued")
         repeated = await self.client.post(f"/api/uploads/{upload_id}/complete")
         self.assertEqual(repeated.json()["id"], job.json()["id"])
+
+    async def test_upload_api_accepts_five_gigabytes_and_rejects_one_byte_over(self):
+        settings = Settings(data_dir=Path(self.tmp.name) / "five-gb-limit")
+        app = create_app(settings, start_worker=False)
+        client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver")
+        try:
+            health = await client.get("/api/health")
+            self.assertEqual(health.json()["max_upload_bytes"], MAX_UPLOAD_BYTES)
+
+            accepted = await client.post(
+                "/api/uploads",
+                json={"filename": "large-recording.wav", "size": MAX_UPLOAD_BYTES},
+            )
+            self.assertEqual(accepted.status_code, 201)
+            upload = app.state.db.get_upload(accepted.json()["id"])
+            self.assertEqual(upload["total_bytes"], MAX_UPLOAD_BYTES)
+            self.assertEqual(Path(upload["path"]).stat().st_size, 0)
+
+            rejected = await client.post(
+                "/api/uploads",
+                json={"filename": "too-large.wav", "size": MAX_UPLOAD_BYTES + 1},
+            )
+            self.assertEqual(rejected.status_code, 413)
+        finally:
+            await client.aclose()
 
     async def test_completion_uses_current_model_and_language_settings(self):
         created = await self.client.post(
